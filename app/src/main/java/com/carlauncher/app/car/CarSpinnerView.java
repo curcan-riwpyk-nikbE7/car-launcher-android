@@ -243,6 +243,14 @@ public class CarSpinnerView extends View {
         float roadBottomHalfW = w * 0.75f;
         float roadTopHalfW = w * 0.03f;
 
+        // Сплошная заливка всей области под горизонтом на всю ширину карточки.
+        // Без этого по углам карточки (слева/справа от трапеции дороги, ниже
+        // линии горизонта) оставался виден фон карточки треугольными
+        // "проплешинами" - подтверждено скриншотом из реального приложения.
+        // Заливка гарантированно исключает эти зазоры независимо от точных
+        // пропорций трапеции.
+        canvas.drawRect(0f, horizonY, w, h, roadPaint);
+
         Path road = new Path();
         road.moveTo(vpX - roadBottomHalfW, bottomY);
         road.lineTo(vpX + roadBottomHalfW, bottomY);
