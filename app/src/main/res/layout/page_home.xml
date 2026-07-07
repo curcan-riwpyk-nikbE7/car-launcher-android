@@ -156,12 +156,17 @@
             </LinearLayout>
         </FrameLayout>
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1.5"
-            android:orientation="horizontal"
-            android:background="@drawable/bg_card">
+            android:background="@drawable/bg_card"
+            android:clipToOutline="true">
+
+            <FrameLayout
+                android:id="@+id/carGlContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -206,14 +211,7 @@
                     android:src="@drawable/ic_headlight"
                     app:tint="@color/text_secondary" />
             </LinearLayout>
-
-            <FrameLayout
-                android:id="@+id/carGlContainer"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@drawable/bg_card" />
-        </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 
     <View
