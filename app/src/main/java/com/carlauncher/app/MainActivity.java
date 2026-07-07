@@ -30,7 +30,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.carlauncher.app.gl.CarGLSurfaceView;
+import com.carlauncher.app.car.CarSpinnerView;
 import com.carlauncher.app.media.MediaRepository;
 import com.carlauncher.app.media.NotificationAccessUtil;
 
@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private String cameraId;
     private boolean flashlightOn = false;
 
-    private CarGLSurfaceView carGlView;
+    private CarSpinnerView carGlView;
     private SpeedProvider speedProvider;
     private String speedUnit = "mph";
 
@@ -161,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
     private void setupCarGlView() {
         FrameLayout container = findViewById(R.id.carGlContainer);
         if (container == null) return;
-        carGlView = new CarGLSurfaceView(this);
+        carGlView = new CarSpinnerView(this);
         container.addView(carGlView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     }
