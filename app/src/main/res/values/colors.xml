@@ -1,0 +1,28 @@
+<resources>
+    <color name="bg_deep">#0D0B2E</color>
+    <color name="bg_deep_2">#1A1245</color>
+    <color name="rail_bg">#120D38</color>
+
+    <color name="accent_cyan">#3FE0FF</color>
+    <color name="accent_blue">#5B6CFF</color>
+    <color name="accent_purple">#9B4FEB</color>
+    <color name="accent_pink">#FF4FA8</color>
+
+    <color name="card_bg">#1B1650</color>
+    <color name="card_bg_2">#221B5C</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9DA3D4</color>
+    <color name="text_tertiary">#6A6FA8</color>
+    <color name="icon_tint">#C1C6EE</color>
+    <color name="divider">#2E2870</color>
+
+    <color name="grad_player_start">#3FE0FF</color>
+    <color name="grad_player_mid">#9B4FEB</color>
+    <color name="grad_player_end">#FF4FA8</color>
+
+    <color name="app_tile_bg">#241D63</color>
+    <color name="dashed_add">#4A4590</color>
+
+    <color name="phone_frame_dark">#0A0824</color>
+</resources>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="@drawable/bg_main_gradient">
+
+    <include layout="@layout/view_side_rail" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageView
+                android:id="@+id/btnBackSettings"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_chevron_right"
+                android:rotation="180"
+                app:tint="@color/text_primary"
+                android:layout_marginEnd="14dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Настройки лаунчера"
+                android:textColor="@color/text_primary"
+                android:textSize="20sp"
+                android:fontFamily="sans-serif-medium" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ДОСТУП И РАЗРЕШЕНИЯ"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:letterSpacing="0.08"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:layout_marginBottom="18dp">
+
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowNotificationAccess"/>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginStart="52dp"/>
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowLocationAccess"/>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ВНЕШНИЙ ВИД"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:letterSpacing="0.08"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:layout_marginBottom="18dp">
+
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowTheme"/>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginStart="52dp"/>
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowWallpaper"/>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginStart="52dp"/>
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowSpeedUnit"/>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="РАБОЧИЙ СТОЛ"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:letterSpacing="0.08"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:layout_marginBottom="18dp">
+
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowManageApps"/>
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider" android:layout_marginStart="52dp"/>
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowResetLayout"/>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="О ПРОГРАММЕ"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="10sp"
+                    android:letterSpacing="0.08"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_card"
+                    android:layout_marginBottom="18dp">
+
+                    <include layout="@layout/item_settings_row" android:id="@+id/rowAbout"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical|end"
+    android:paddingStart="14dp"
+    android:paddingEnd="18dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ПТ 17.07"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:letterSpacing="0.05"
+        android:layout_marginEnd="14dp" />
+
+    <ImageView
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:src="@drawable/ic_cloud"
+        app:tint="@color/icon_tint"
+        android:layout_marginEnd="3dp" />
+
+    <TextView
+        android:id="@+id/tvTemp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="28°"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:layout_marginEnd="14dp" />
+
+    <ImageView
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:src="@drawable/ic_mic"
+        app:tint="@color/icon_tint"
+        android:layout_marginEnd="10dp" />
+
+    <ImageView
+        android:id="@+id/iconBluetooth"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:src="@drawable/ic_bluetooth"
+        app:tint="@color/icon_tint"
+        android:layout_marginEnd="10dp" />
+
+    <ImageView
+        android:id="@+id/iconWifi"
+        android:layout_width="15dp"
+        android:layout_height="15dp"
+        android:src="@drawable/ic_wifi"
+        app:tint="@color/icon_tint"
+        android:layout_marginEnd="10dp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="26dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_bluetooth_badge"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp">
+
+        <ImageView
+            android:layout_width="13dp"
+            android:layout_height="13dp"
+            android:src="@drawable/ic_volume"
+            app:tint="@color/text_primary"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@+id/tvVolume"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="15"
+            android:textColor="@color/text_primary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>
