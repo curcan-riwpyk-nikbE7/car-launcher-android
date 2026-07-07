@@ -4,8 +4,10 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -20,40 +22,43 @@ import com.carlauncher.app.R;
 
 /**
  * Карточка "3D-машина". История подхода (важно для будущих правок):
- *  v1-v3: процедурная geometрия из боксов в OpenGL ES 2.0 - три раза
- *  провалилась на реальном устройстве (нечитаемый силуэт), несмотря на
- *  то что геометрия v3 была заранее визуально проверена в
- *  Python/matplotlib - matplotlib не отражает как GLES реально рисует
- *  грани/освещение/culling, поэтому расхождение было видно только на
- *  скриншотах из настоящего приложения.
+ *  v1-v3: процедурная геометрия из боксов в OpenGL ES 2.0 - три раза
+ *  провалилась на реальном устройстве (нечитаемый силуэт).
  *  v4: статичное готовое изображение машины (car_neon.png) + анимация
- *  покачивания/наклона. Подтверждено пользователем как выглядящее
- *  правильно (реальный скриншот), но без ощущения движения/дороги.
- *  v5 (текущая): та же проверенная картинка машины, ПЛЮС:
- *   - процедурная псевдо-3D дорога с перспективой и дорожной разметкой,
- *     которая "едет" на зрителя со скоростью, пропорциональной реальной
- *     скорости с GPS (SpeedProvider) - на 0 км/ч анимация практически
- *     останавливается, на скорости растёт;
- *   - вращающиеся диски колёс поверх фото колёс на картинке машины -
- *     чистая векторная геометрия (эллипс + спицы), а не поворот самой
- *     фотографии (поворот фото давал видимые швы с кузовом - проверено
- *     и отвергнуто на этапе Python-прототипирования перед переносом
- *     сюда, см. car_geometry_check/road_and_wheels_check.py).
- *  Вся композиция (дорога + машина + положение/размер колёс) была
- *  заранее собрана и лично просмотрена в Python/Pillow перед переносом
- *  на Canvas Android, т.к. API рисования (заливки, эллипсы, полигоны,
- *  альфа-композитинг) идентичны между Pillow и android.graphics.Canvas -
- *  в отличие от OpenGL, здесь нет риска расхождения между "как это
- *  выглядит в проверке" и "как это выглядит на реальном устройстве".
+ *  покачивания/наклона. Подтверждено пользователем реальным скриншотом.
+ *  v5: добавлена плоская псевдо-3D дорога с перспективой и разметкой +
+ *  вращающиеся векторные диски колёс. Подтверждено пользователем, но
+ *  затем обнаружен и исправлен баг с пустыми углами карточки.
+ *  v6 (текущая): пользователь прислал референс другого лаунчера
+ *  (skyline synthwave/outrun: яркое сияние на горизонте, расходящиеся
+ *  неоновые лучи, перспективная сетка) и попросил сделать "как здесь".
+ *  Полностью заменён фон карточки на synthwave-стиль:
+ *   - статический (закэшированный в отдельный software Bitmap, чтобы
+ *     можно было использовать BlurMaskFilter для мягкого свечения -
+ *     BlurMaskFilter не поддерживается на hardware-accelerated Canvas,
+ *     но полностью работает на канвасе поверх обычного Bitmap)
+ *     слой: вертикальный + радиальный градиент под яркое сияние
+ *     горизонта в фиолетовых тонах, веер расходящихся неоновых лучей,
+ *     статичные сходящиеся в точку схода линии сетки;
+ *   - анимированный слой поверх кэша: горизонтальные линии сетки едут
+ *     на зрителя (перспективное сжатие), скорость зависит от реальной
+ *     скорости с GPS - как и раньше с дорожной разметкой;
+ *   - машина и вращающиеся колёсные диски оставлены как есть (уже
+ *     подтверждены пользователем ранее), только чуть уменьшены и
+ *     подняты, чтобы не перекрывать лучи и не обрезаться.
+ *  Вся композиция была заново собрана и лично просмотрена в Python/
+ *  Pillow (сравнение с присланным пользователем референсом бок о бок)
+ *  перед переносом на Canvas Android, см. car_geometry_check/.
  */
 public class CarSpinnerView extends View {
 
     private Bitmap carBitmap;
+    private Bitmap bgCache;
+    private int bgCacheW = -1, bgCacheH = -1;
+
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint roadPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint dashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint edgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint gridLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint wheelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint spokePaintLight = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint spokePaintDark = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -67,16 +72,17 @@ public class CarSpinnerView extends View {
     private float tiltDeg = 0f;
     private float targetTiltDeg = 0f;
 
-    private float roadOffset = 0f;    // [0,1) фаза бегущей разметки
+    private float gridOffset = 0f;    // [0,1) фаза бегущей сетки
     private float wheelAngleDeg = 0f; // угол поворота дисков
 
     private ValueAnimator animator;
     private long lastFrameNanos = 0L;
 
-    // Относительные координаты колёс на car_neon.png (доля от ширины/высоты
-    // битмапа), измерены детектором окружностей + анализом цвета неоновой
-    // обводки диска (см. car_geometry_check/measure_wheels.py), НЕ подобраны
-    // на глаз.
+    private static final float HORIZON_FRAC = 0.30f;
+    private static final float VP_X_FRAC = 0.5f;
+
+    // Относительные координаты колёс на car_neon.png, измерены программно
+    // по цвету неоновой обводки диска (car_geometry_check/measure_wheels.py).
     private static final float REAR_CX_FRAC = 222.0f / 1621f;
     private static final float REAR_CY_FRAC = 337.0f / 604f;
     private static final float REAR_RX_FRAC = 132.0f / 1621f;
@@ -87,7 +93,7 @@ public class CarSpinnerView extends View {
     private static final float FRONT_RX_FRAC = 148.0f / 1621f;
     private static final float FRONT_RY_FRAC = 148.0f / 604f;
 
-    private static final float WHEEL_BOTTOM_FRAC = 0.962f; // самая нижняя точка колёс на картинке (доля высоты)
+    private static final float WHEEL_BOTTOM_FRAC = 0.962f;
 
     public CarSpinnerView(Context context) {
         super(context);
@@ -107,11 +113,8 @@ public class CarSpinnerView extends View {
     }
 
     private void initPaints() {
-        roadPaint.setColor(Color.rgb(9, 10, 24));
-        edgePaint.setStyle(Paint.Style.STROKE);
-        edgePaint.setStrokeWidth(2.5f);
-        edgePaint.setColor(withAlpha(0x3FE0FF, 90));
-        dashPaint.setColor(withAlpha(0xE6EBFF, 195));
+        gridLinePaint.setStyle(Paint.Style.STROKE);
+        gridLinePaint.setStrokeWidth(1.5f);
 
         wheelBgPaint.setColor(Color.rgb(16, 16, 22));
         spokePaintLight.setColor(Color.rgb(160, 165, 178));
@@ -133,7 +136,7 @@ public class CarSpinnerView extends View {
 
     private void startAnimator() {
         animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(1_000_000_000); // тик через updateListener, длительность не важна т.к. используем dt
+        animator.setDuration(1_000_000_000);
         animator.setRepeatCount(ValueAnimator.INFINITE);
         animator.setInterpolator(new LinearInterpolator());
         lastFrameNanos = System.nanoTime();
@@ -147,13 +150,10 @@ public class CarSpinnerView extends View {
             breathPhase += dt * 2.5f;
             tiltDeg += (targetTiltDeg - tiltDeg) * 0.06f;
 
-            // скорость разметки и вращения колёс пропорциональна реальной скорости,
-            // но есть небольшая базовая "холостая" анимация даже на 0 км/ч,
-            // чтобы карточка не выглядела мёртвой в статике
-            float speedFactor = Math.min(speedKmh, 180f) / 180f; // 0..1
-            float roadSpeed = 0.12f + speedFactor * 1.6f; // циклов дорожной разметки в секунду
-            roadOffset += dt * roadSpeed;
-            roadOffset -= Math.floor(roadOffset);
+            float speedFactor = Math.min(speedKmh, 180f) / 180f;
+            float gridSpeed = 0.12f + speedFactor * 1.6f;
+            gridOffset += dt * gridSpeed;
+            gridOffset -= Math.floor(gridOffset);
 
             float wheelDegPerSec = 24f + speedKmh * 9f;
             wheelAngleDeg += dt * wheelDegPerSec;
@@ -193,14 +193,18 @@ public class CarSpinnerView extends View {
             if (carBitmap == null) return;
         }
 
-        drawRoad(canvas, w, h);
+        if (bgCache == null || bgCacheW != w || bgCacheH != h) {
+            buildBackgroundCache(w, h);
+        }
+        canvas.drawBitmap(bgCache, 0f, 0f, null);
+        drawAnimatedGrid(canvas, w, h);
 
         float bob = (float) Math.sin(bobPhase) * (h * 0.010f);
         float breath = 0.55f + 0.45f * (float) (0.5 + 0.5 * Math.sin(breathPhase));
 
-        float padding = w * 0.08f;
+        float padding = w * 0.10f;
         float availW = w - padding * 2f;
-        float availH = h * 0.50f;
+        float availH = h * 0.44f;
         float bw = carBitmap.getWidth();
         float bh = carBitmap.getHeight();
         float scale = Math.min(availW / bw, availH / bh);
@@ -208,13 +212,12 @@ public class CarSpinnerView extends View {
         float drawW = bw * scale;
         float drawH = bh * scale;
         float left = (w - drawW) / 2f;
-        float groundY = h * 0.60f;
+        float groundY = h * 0.63f;
         float top = groundY - drawH * WHEEL_BOTTOM_FRAC + bob;
 
-        // свечение под машиной (реагирует на скорость и "дыхание")
         float glowCx = w * 0.5f;
         float glowCy = groundY + bob;
-        float glowR = w * 0.40f * (0.9f + 0.15f * breath) * (1f + Math.min(speedKmh, 160f) / 800f);
+        float glowR = w * 0.38f * (0.9f + 0.15f * breath) * (1f + Math.min(speedKmh, 160f) / 800f);
         int glowAlpha = (int) (55 * breath) + (int) Math.min(speedKmh, 55);
         glowPaint.setShader(new RadialGradient(
                 glowCx, glowCy, Math.max(glowR, 1f),
@@ -228,80 +231,133 @@ public class CarSpinnerView extends View {
         matrix.postRotate(tiltDeg, w / 2f, top + drawH * 0.75f);
         canvas.drawBitmap(carBitmap, matrix, paint);
 
-        // вращающиеся диски поверх колёс на картинке (та же матрица трансформации,
-        // чтобы координаты совпадали с наклоном/покачиванием кузова)
-        drawWheel(canvas, matrix, drawW, drawH,
+        drawWheel(canvas, matrix,
                 REAR_CX_FRAC * bw, REAR_CY_FRAC * bh, REAR_RX_FRAC * bw, REAR_RY_FRAC * bh, scale);
-        drawWheel(canvas, matrix, drawW, drawH,
+        drawWheel(canvas, matrix,
                 FRONT_CX_FRAC * bw, FRONT_CY_FRAC * bh, FRONT_RX_FRAC * bw, FRONT_RY_FRAC * bh, scale);
     }
 
-    private void drawRoad(Canvas canvas, int w, int h) {
-        float horizonY = h * 0.30f;
-        float bottomY = h * 1.15f;
-        float vpX = w * 0.5f;
-        float roadBottomHalfW = w * 0.75f;
-        float roadTopHalfW = w * 0.03f;
+    /**
+     * Статичная (не меняется каждый кадр) часть synthwave-фона: собирается
+     * один раз в отдельный software Bitmap через свой Canvas - это позволяет
+     * использовать BlurMaskFilter для мягкого свечения лучей, чего нельзя
+     * сделать на hardware-accelerated Canvas самого View. Пересобирается
+     * только при изменении размера карточки.
+     */
+    private void buildBackgroundCache(int w, int h) {
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
 
-        // Сплошная заливка всей области под горизонтом на всю ширину карточки.
-        // Без этого по углам карточки (слева/справа от трапеции дороги, ниже
-        // линии горизонта) оставался виден фон карточки треугольными
-        // "проплешинами" - подтверждено скриншотом из реального приложения.
-        // Заливка гарантированно исключает эти зазоры независимо от точных
-        // пропорций трапеции.
-        canvas.drawRect(0f, horizonY, w, h, roadPaint);
+        float horizonY = h * HORIZON_FRAC;
+        float vpX = w * VP_X_FRAC;
 
-        Path road = new Path();
-        road.moveTo(vpX - roadBottomHalfW, bottomY);
-        road.lineTo(vpX + roadBottomHalfW, bottomY);
-        road.lineTo(vpX + roadTopHalfW, horizonY);
-        road.lineTo(vpX - roadTopHalfW, horizonY);
-        road.close();
-        canvas.drawPath(road, roadPaint);
+        int deepColor = Color.rgb(16, 13, 36);
+        int horizonColor = Color.rgb(70, 52, 130);
 
-        canvas.drawLine(vpX - roadBottomHalfW, bottomY, vpX - roadTopHalfW, horizonY, edgePaint);
-        canvas.drawLine(vpX + roadBottomHalfW, bottomY, vpX + roadTopHalfW, horizonY, edgePaint);
+        Paint vGrad = new Paint(Paint.ANTI_ALIAS_FLAG);
+        vGrad.setShader(new LinearGradient(0f, 0f, 0f, h,
+                new int[]{deepColor, horizonColor, deepColor},
+                new float[]{0f, horizonY / h, 1f},
+                Shader.TileMode.CLAMP));
+        c.drawRect(0f, 0f, w, h, vGrad);
 
-        int nDashes = 16;
-        float dashLenFrac = 0.45f;
-        for (int i = 0; i < nDashes + 2; i++) {
-            float t0 = (i + roadOffset) / nDashes;
-            if (t0 >= 1f) continue;
-            float t1 = Math.min(t0 + dashLenFrac / nDashes, 1f);
+        Paint hGlow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        RadialGradient rg = new RadialGradient(vpX, horizonY, w * 0.85f,
+                new int[]{withAlpha(0x9668FF, 190), withAlpha(0x9668FF, 60), withAlpha(0x9668FF, 0)},
+                new float[]{0f, 0.4f, 1f}, Shader.TileMode.CLAMP);
+        Matrix flatten = new Matrix();
+        flatten.setScale(1f, 0.32f, vpX, horizonY);
+        rg.setLocalMatrix(flatten);
+        hGlow.setShader(rg);
+        c.drawRect(0f, 0f, w, h, hGlow);
 
-            float tt0 = t0 * t0;
-            float y0 = bottomY + (horizonY - bottomY) * tt0;
-            float hw0 = roadBottomHalfW + (roadTopHalfW - roadBottomHalfW) * tt0;
-            float tt1 = t1 * t1;
-            float y1 = bottomY + (horizonY - bottomY) * tt1;
-            float hw1 = roadTopHalfW + (roadBottomHalfW - roadTopHalfW) * (1f - tt1);
+        // веер расходящихся неоновых лучей (мягкое свечение через BlurMaskFilter -
+        // работает, т.к. этот Canvas создан поверх обычного software Bitmap)
+        Paint rayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        rayPaint.setStrokeWidth(Math.max(2f, w * 0.0035f));
+        rayPaint.setMaskFilter(new BlurMaskFilter(Math.max(3f, w * 0.006f), BlurMaskFilter.Blur.NORMAL));
 
-            float dashW0 = hw0 * 0.035f;
-            float dashW1 = hw1 * 0.035f;
+        float maxLen = h * 1.5f;
+        int rayCount = 13;
+        for (int i = 0; i < rayCount; i++) {
+            float t = i / (float) (rayCount - 1);
+            float angleDeg = 90f + (t - 0.5f) * 150f;
+            double rad = Math.toRadians(angleDeg);
+            float x2 = (float) (vpX + maxLen * Math.cos(rad));
+            float y2 = (float) (horizonY + maxLen * Math.sin(rad));
+            int color = (i % 2 == 0) ? withAlpha(0xAA78FF, 130) : withAlpha(0x6496FF, 110);
+            rayPaint.setColor(color);
+            c.drawLine(vpX, horizonY, x2, y2, rayPaint);
+        }
+        int upCount = 5;
+        for (int i = 0; i < upCount; i++) {
+            float t = i / (float) (upCount - 1);
+            float angleDeg = -90f + (t - 0.5f) * 90f;
+            double rad = Math.toRadians(angleDeg);
+            float length = h * 0.55f;
+            float x2 = (float) (vpX + length * Math.cos(rad));
+            float y2 = (float) (horizonY + length * Math.sin(rad));
+            rayPaint.setColor(withAlpha(0xAA78FF, 70));
+            c.drawLine(vpX, horizonY, x2, y2, rayPaint);
+        }
 
-            Path dash = new Path();
-            dash.moveTo(vpX - dashW0, y0);
-            dash.lineTo(vpX + dashW0, y0);
-            dash.lineTo(vpX + dashW1, y1);
-            dash.lineTo(vpX - dashW1, y1);
-            dash.close();
-            canvas.drawPath(dash, dashPaint);
+        // статичные сходящиеся линии перспективной сетки (не анимируются -
+        // едут только горизонтальные линии, как в референсе)
+        Paint staticGridPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        staticGridPaint.setStyle(Paint.Style.STROKE);
+        staticGridPaint.setStrokeWidth(1f);
+        staticGridPaint.setColor(withAlpha(0x8C6EDC, 90));
+
+        float bottomY = h * 1.08f;
+        float groundHalfWBottom = w * 0.9f;
+        int nVLines = 12;
+        for (int i = 0; i <= nVLines; i++) {
+            float t = i / (float) nVLines;
+            float xBottom = vpX - groundHalfWBottom + t * (2f * groundHalfWBottom);
+            c.drawLine(xBottom, bottomY, vpX, horizonY, staticGridPaint);
+        }
+
+        // яркая линия-ядро точно на горизонте
+        Paint core = new Paint(Paint.ANTI_ALIAS_FLAG);
+        core.setColor(withAlpha(0xFFFFFF, 210));
+        float coreH = Math.max(1.5f, h * 0.008f);
+        c.drawRect(0f, horizonY - coreH, w, horizonY + coreH, core);
+
+        bgCache = bmp;
+        bgCacheW = w;
+        bgCacheH = h;
+    }
+
+    /** Горизонтальные линии сетки, "едущие" на зрителя - единственная анимированная часть фона. */
+    private void drawAnimatedGrid(Canvas canvas, int w, int h) {
+        float horizonY = h * HORIZON_FRAC;
+        float vpX = w * VP_X_FRAC;
+        float bottomY = h * 1.08f;
+        float groundHalfWBottom = w * 0.9f;
+        float groundHalfWTop = w * 0.02f;
+
+        int nHLines = 10;
+        for (int i = 0; i < nHLines; i++) {
+            float tt = (i + gridOffset) / nHLines;
+            tt = tt - (float) Math.floor(tt);
+            float te = tt * tt;
+            float y = bottomY + (horizonY - bottomY) * te;
+            float halfW = groundHalfWBottom + (groundHalfWTop - groundHalfWBottom) * te;
+            int alpha = (int) (150 * (1f - te));
+            if (alpha <= 2) continue;
+            gridLinePaint.setColor(withAlpha(0x8C6EDC, Math.min(alpha, 150)));
+            canvas.drawLine(vpX - halfW, y, vpX + halfW, y, gridLinePaint);
         }
     }
 
     private final RectF wheelRect = new RectF();
-    private final RectF innerRect = new RectF();
-    private final RectF outerRect = new RectF();
     private final RectF ringRect = new RectF();
     private final RectF hubRect = new RectF();
     private final RectF hubCenterRect = new RectF();
     private final Path spokePath = new Path();
 
-    private void drawWheel(Canvas canvas, Matrix carMatrix, float drawW, float drawH,
+    private void drawWheel(Canvas canvas, Matrix carMatrix,
                             float cxLocal, float cyLocal, float rxLocal, float ryLocal, float scale) {
-        // переводим локальные координаты колеса (в системе координат исходного
-        // битмапа) в координаты канвы через ту же матрицу, что и сама машина,
-        // чтобы диск точно совпадал с покачиванием/наклоном кузова
         float[] pts = new float[]{cxLocal, cyLocal};
         carMatrix.mapPoints(pts);
         float cx = pts[0];
@@ -310,8 +366,6 @@ public class CarSpinnerView extends View {
         float ry = ryLocal * scale;
 
         canvas.save();
-        // применяем тот же поворот тела (tiltDeg), что и матрица машины, чтобы диск
-        // "приклеился" к кузову при наклоне
         canvas.rotate(tiltDeg, cx, cy);
 
         wheelRect.set(cx - rx, cy - ry, cx + rx, cy + ry);
@@ -357,5 +411,9 @@ public class CarSpinnerView extends View {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         if (animator != null) animator.cancel();
+        if (bgCache != null) {
+            bgCache.recycle();
+            bgCache = null;
+        }
     }
 }
